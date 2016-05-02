@@ -1,0 +1,290 @@
+<!doctype html>
+<!--
+  File: hdmi.html  upgraded slightly from matrix.html
+ 
+//-->
+
+<html>
+<head>
+  <title>Switch</title>
+  <meta name="viewport" content="width=device-width, user-scalable = no", initial-scale=1.0, maximum-scale=1.0"/>  
+  <link rel="apple-touch-icon" href="/icon.png"/>  
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-startup-image" href="/static/images/splash.png">
+
+  <style type="text/css">
+	td { background-image: url("/static/images/Gray.png");
+		 background-repeat: no-repeat;
+		 background-position: center;
+		 background-size: 100% auto;
+		 text-align:center;
+		 width: 150px;
+		 height: 100px;
+		 
+	}
+	
+	td.clicked { background-image: url("/static/images/Green.png"); }
+	td.notclicked { background-image: url("/static/images/Gray.png"); }
+	
+	img { z-index:-1; 
+		  		 position: center;
+}
+  </style>
+
+  <script type="text/javascript">
+	var av = "video";		// Selects whether we are switching Whole house audio or HDMI Video
+	var column1;
+	var column2;
+	var getPage;
+	
+	var videoHeader = "<img src='/static/images/colortv.png'> Video Switch <img src='/static/images/colortv.png'>";
+	var video1 = ["Family Rm", "Bedroom", "Kitchen", "Basement"];
+	var video2 = ["Comcast", "BluRay", "Apple TV", "Computer"];
+	var videoGetPage = "/video";
+
+	var audioHeader = "<img src='/static/images/musicNote75.jpg'>Audio Switch <img src='/static/images/musicNote75.jpg'>";
+	var audio1 = ["FamilyRm", "Kitchen", "Bedroom", "Basement", "ChangingRm"];
+	var audio2 = ["Comcast","Squeezebox","AppleExpress","-","-"];
+	var audioGetPage = "/audio";
+	var audioLevel = 30;
+	var	mute=0;
+
+	
+	function init() {
+		
+		if(av == "audio") {
+			header=audioHeader;
+			column1=audio1;
+			column2=audio2;
+			getPage=audioGetPage;
+		}else{
+			header=videoHeader;
+			column1=video1;
+			column2=video2;
+			getPage=videoGetPage;
+		}
+		
+		//Set header
+		document.getElementById('header').innerHTML = header;
+		
+		// Create the Button table
+		makeTable();
+		
+		// Hide AudioLevels if video selected
+		if(av=="video") {
+			document.getElementById('footer').style.display = 'none';
+		}else{
+			document.getElementById('level').value = audioLevel;
+			document.getElementById('footer').style.display = 'inline';
+		}
+	}
+	
+	
+	function idclick(idClicked) {
+		var column = idClicked.charAt(0);
+		var row    = idClicked.charAt(1);
+		
+		// Click a button, change class which changes button via CSS
+		if(column == 'a') {
+			// If alaready clicked, then unclick, else mark as clicked
+			if( document.getElementById(idClicked).className == "clicked") {
+				document.getElementById(idClicked).className = "";
+			}else{
+				document.getElementById(idClicked).className = "clicked";
+			}
+		// Else action button pushed	
+		} else if (column == 'b') {
+			var clickedElements = document.getElementsByClassName('clicked');
+			var clickedIds = new Array();
+			
+			// Get all Clicked buttons
+			for (var x in clickedElements) {
+				if(clickedElements[x].id && clickedElements[x].id.match('a') ) {
+					clickedIds.push(clickedElements[x].id);
+				}
+			}
+
+			var resultString = "";
+			var resultCGI    = "?column1=";
+
+			if(clickedIds.length == 0) {
+				resultString = "Error: No Buttons selected";
+				init();
+				return;
+			}
+			
+			// Get clicked button names
+			for( var y=0; y<clickedIds.length; y++) {
+				resultString = resultString + column1[clickedIds[y].charAt(1)] + " + ";
+				resultCGI    = resultCGI + column1[clickedIds[y].charAt(1)].toLowerCase() + ',';
+			}
+			
+			resultString = resultString.substr(0,resultString.length - 3); // Get rid of last " + "
+			resultCGI    = resultCGI.substr(0,resultCGI.length - 1);       // Get rid of last ","
+			
+			resultString = resultString + " -> " + column2[idClicked.charAt(1)].toLowerCase();			
+			resultCGI    = resultCGI + "&" + "column2=" + column2[idClicked.charAt(1)].toLowerCase();
+			
+			if(av == "audio") {
+				resultCGI     = resultCGI + "&audiolevel=" + audioLevel;
+			}
+			
+			//document.getElementById("result").innerHTML = resultString;
+			
+			// AJAX send results to PHP script to execute IR cmds
+			var xmlhttp = new XMLHttpRequest();
+			xmlhttp.open("GET", getPage + resultCGI,true);
+			xmlhttp.send();
+
+			// Reset all buttons back to unchecked
+			init();
+			
+		}else{
+			alert("Error in column");
+		}
+		
+		
+	}
+	function setAudioLevel(level) {
+		audioLevel = level;
+	}
+
+	function startSqueezebox(selection) {
+		// AJAX send results to PHP script to kick off Pandora on Squeezebox
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", getPage + "?squeezebox="+selection,true);
+		xmlhttp.send();
+	}
+	
+	function makeTable() {
+
+		row=new Array();
+		cell=new Array();
+
+		row_num=column1.length; // # of rows depends on size of array
+		cell_num=2;             // Two columns
+
+		//remove the old table
+		var t = document.getElementById('mytable');
+		t.removeChild(t.lastChild);
+		
+		// Start building new table
+		tab=document.createElement('table');
+		tab.setAttribute('id','mytable');
+		tbo=document.createElement('tbody');
+
+		for(c=0;c<row_num;c++){
+			row[c]=document.createElement('tr');
+
+			for(k=0;k<cell_num;k++) {
+				cell[k]=document.createElement('td');
+				if(k == 0) {
+					cont=document.createTextNode(column1[c]);
+					cell[k].setAttribute('id','a'+c);
+					cell[k].setAttribute("onclick","idclick('a"+c+"');");
+				}else{
+					cont=document.createTextNode(column2[c]);
+					cell[k].setAttribute('id','b'+c);
+					cell[k].setAttribute("onclick","idclick('b"+c+"');");
+				}
+				cell[k].appendChild(cont);
+				row[c].appendChild(cell[k]);
+			}
+			tbo.appendChild(row[c]);
+		}
+		tab.appendChild(tbo);
+		document.getElementById('mytable').appendChild(tab);
+	}
+
+	function toggleAV() {
+		if(av=='audio') {
+			av='video';
+		}else{
+			av='audio';
+		}
+		init();
+	}
+	
+	function toggleMute() {
+		if(mute==0) {
+			mute=1;
+		}else{
+			mute=0;
+		}
+	
+		// AJAX send results to PHP script to execute IR cmds
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", getPage + "?mute="+mute,true);
+		xmlhttp.send();
+	}
+
+	
+	function allAudioOff() {
+		// AJAX send results to PHP script to execute IR cmds
+		var xmlhttp = new XMLHttpRequest();
+		xmlhttp.open("GET", getPage + "?alloff=1",true);
+		xmlhttp.send();
+	}
+	
+	</script>
+  
+  </head>
+  
+<body onload="init();">
+
+	
+
+<center>
+<h1>
+
+<a=href OnClick="toggleAV();" id="header">Switch Controller</a></h1>
+
+
+<div id="mytable"> </div> 
+
+<div id="result"></div>
+
+<div id="footer">
+  <table>
+  <tr>
+  <td>
+	Audio Level:<br />
+	<select id="level" name="audiolevel" style="height: 30px; width: 100px" onChange="setAudioLevel(this.value);">
+	  <option value="20">20</option>
+	  <option value="25">25</option>
+	  <option value="30">30</option>
+	  <option value="35">35</option>
+	  <option value="40">40</option>
+	  <option value="45">45</option>
+	  <option value="50">50</option>
+	  <option value="55">55</option>
+	</select><br />
+	
+	</td><td>
+	
+	Pandora Select:<br />
+	<select id="squeezebox" name="squeezebox" value="Pandora" style="height: 30px; width: 100px" onChange="startSqueezebox(this.value);">
+	  <option>Pandora</option>
+	  <option value="P_KATY">Katy Pery</option>
+	  <option value="P_RAP">Rap</option>
+	  <option value="P_COUNTRY">Country</option>
+	  <option value="P_BUFFET">Jimmy Buffet</option>
+	  <option value="P_MELLOW">Mellow</option>
+	</select><br />
+   </td></tr>
+	<br><br><br>
+
+	<input id='toggleMute' type=button OnClick="toggleMute();"  style="height: 75px; width: 100px" value="Mute"> 
+	<span style="padding-left:20px">
+	<input id='allOff' type=button OnClick="allAudioOff();"  style="height: 75px; width: 100px" value="All Audio Off">
+	<br><br>
+
+</div>
+
+</div>
+</center>
+
+
+
+</body>
+</html>
